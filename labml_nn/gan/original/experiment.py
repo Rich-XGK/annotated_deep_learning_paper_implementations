@@ -26,9 +26,9 @@ from labml_nn.gan.original import DiscriminatorLogitsLoss, GeneratorLogitsLoss
 
 def weights_init(m):
     classname = m.__class__.__name__
-    if classname.find('Linear') != -1:
+    if classname.find("Linear") != -1:
         nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
+    elif classname.find("BatchNorm") != -1:
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
 
@@ -92,16 +92,16 @@ class Configs(MNISTConfigs, TrainValidConfigs):
     """
 
     device: torch.device = DeviceConfigs()
-    dataset_transforms = 'mnist_gan_transforms'
+    dataset_transforms = "mnist_gan_transforms"
     epochs: int = 10
 
     is_save_models = True
-    discriminator: Module = 'mlp'
-    generator: Module = 'mlp'
+    discriminator: Module = "mlp"
+    generator: Module = "mlp"
     generator_optimizer: torch.optim.Adam
     discriminator_optimizer: torch.optim.Adam
-    generator_loss: GeneratorLogitsLoss = 'original'
-    discriminator_loss: DiscriminatorLogitsLoss = 'original'
+    generator_loss: GeneratorLogitsLoss = "original"
+    discriminator_loss: DiscriminatorLogitsLoss = "original"
     label_smoothing: float = 0.2
     discriminator_k: int = 1
 
@@ -111,8 +111,8 @@ class Configs(MNISTConfigs, TrainValidConfigs):
         """
         self.state_modules = []
 
-        hook_model_outputs(self.mode, self.generator, 'generator')
-        hook_model_outputs(self.mode, self.discriminator, 'discriminator')
+        hook_model_outputs(self.mode, self.generator, "generator")
+        hook_model_outputs(self.mode, self.discriminator, "discriminator")
         tracker.set_scalar("loss.generator.*", True)
         tracker.set_scalar("loss.discriminator.*", True)
         tracker.set_image("generated", True, 1 / 100)
@@ -149,7 +149,7 @@ class Configs(MNISTConfigs, TrainValidConfigs):
                 self.discriminator_optimizer.zero_grad()
                 loss.backward()
                 if batch_idx.is_last:
-                    tracker.add('discriminator', self.discriminator)
+                    tracker.add("discriminator", self.discriminator)
                 self.discriminator_optimizer.step()
 
         # Train the generator once in every `discriminator_k`
@@ -162,18 +162,17 @@ class Configs(MNISTConfigs, TrainValidConfigs):
                     self.generator_optimizer.zero_grad()
                     loss.backward()
                     if batch_idx.is_last:
-                        tracker.add('generator', self.generator)
+                        tracker.add("generator", self.generator)
                     self.generator_optimizer.step()
-
         tracker.save()
 
-    def calc_discriminator_loss(self, data):
+    def calc_discriminator_loss(self, data):  # data: [b, 1, 28, 28]
         """
         Calculate discriminator loss
         """
-        latent = self.sample_z(data.shape[0])
-        logits_true = self.discriminator(data)
-        logits_false = self.discriminator(self.generator(latent).detach())
+        latent = self.sample_z(data.shape[0])  # latent: [b, 100]
+        logits_true = self.discriminator(data)  # logits_true: [b, 1]
+        logits_false = self.discriminator(self.generator(latent).detach())  # logits_false: [b, 1]
         loss_true, loss_false = self.discriminator_loss(logits_true, logits_false)
         loss = loss_true + loss_false
 
@@ -188,32 +187,27 @@ class Configs(MNISTConfigs, TrainValidConfigs):
         """
         Calculate generator loss
         """
-        latent =  self.sample_z(batch_size)
+        latent = self.sample_z(batch_size)
         generated_images = self.generator(latent)
         logits = self.discriminator(generated_images)
         loss = self.generator_loss(logits)
 
         # Log stuff
-        tracker.add('generated', generated_images[0:6])
+        tracker.add("generated", generated_images[0:6])
         tracker.add("loss.generator.", loss)
 
         return loss
 
 
-
-
 @option(Configs.dataset_transforms)
 def mnist_gan_transforms():
-    return transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))
-    ])
+    return transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
 
 
 @option(Configs.discriminator_optimizer)
 def _discriminator_optimizer(c: Configs):
     opt_conf = OptimizerConfigs()
-    opt_conf.optimizer = 'Adam'
+    opt_conf.optimizer = "Adam"
     opt_conf.parameters = c.discriminator.parameters()
     opt_conf.learning_rate = 2.5e-4
     # Setting exponent decay rate for first moment of gradient,
@@ -226,7 +220,7 @@ def _discriminator_optimizer(c: Configs):
 @option(Configs.generator_optimizer)
 def _generator_optimizer(c: Configs):
     opt_conf = OptimizerConfigs()
-    opt_conf.optimizer = 'Adam'
+    opt_conf.optimizer = "Adam"
     opt_conf.parameters = c.generator.parameters()
     opt_conf.learning_rate = 2.5e-4
     # Setting exponent decay rate for first moment of gradient,
@@ -236,20 +230,19 @@ def _generator_optimizer(c: Configs):
     return opt_conf
 
 
-calculate(Configs.generator, 'mlp', lambda c: Generator().to(c.device))
-calculate(Configs.discriminator, 'mlp', lambda c: Discriminator().to(c.device))
-calculate(Configs.generator_loss, 'original', lambda c: GeneratorLogitsLoss(c.label_smoothing).to(c.device))
-calculate(Configs.discriminator_loss, 'original', lambda c: DiscriminatorLogitsLoss(c.label_smoothing).to(c.device))
+calculate(Configs.generator, "mlp", lambda c: Generator().to(c.device))
+calculate(Configs.discriminator, "mlp", lambda c: Discriminator().to(c.device))
+calculate(Configs.generator_loss, "original", lambda c: GeneratorLogitsLoss(c.label_smoothing).to(c.device))
+calculate(Configs.discriminator_loss, "original", lambda c: DiscriminatorLogitsLoss(c.label_smoothing).to(c.device))
 
 
 def main():
     conf = Configs()
-    experiment.create(name='mnist_gan', comment='test')
-    experiment.configs(conf,
-                       {'label_smoothing': 0.01})
+    experiment.create(name="mnist_gan", comment="test")
+    experiment.configs(conf, {"label_smoothing": 0.01})
     with experiment.start():
         conf.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
